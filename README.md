@@ -6,6 +6,8 @@ The program expects an "evidence.txt" file from <a href="http://www.biochem.mpg.
     - Number_of_Peptides_per_RawFile.txt (number of peptides available for calculation of deamidation for N and for Q)
     - Bootstrapped_values.txt (all the deamidation percentages calculated by e.g. 1000 bootstrap iterations, which are subsequently used to calculate the mean, std, and CI for shown in "Deamidation.txt")
     - Protein_deamidation.txt (deamidation on the protein level, to be used with restraint since there usually are few data to acquire meaningful results, therefore no bootstrapping is applied)
+
+The "R_plot.R" script contains code that uses "Deamidation.txt" and "Number_of_Peptides_per_RawFile.txt" to create a BarPlot with STD as error bars, and includes the number of peptides used for the respective deamidation calculation.  
     
 # Citation
 Publication will be referenced here.
@@ -25,5 +27,5 @@ e.g. type the following command in the terminal to see options.
 ## example for Windows
 <code>python deamidation.py -e C:\Directory\evidence.txt -o C:\Directory\Output</code>
 
-# Support, Questions & Praise
+# Support & Questions
 feel free to contact <david.lyon@cpr.ku.dk> for help
