@@ -318,9 +318,13 @@ def number_of_N_Q_peptides_with_DeamPerc(df, abundance_colname, colname_RawFile,
     df = pd.concat(ser_list, axis=1).T
     df = df.reset_index()
     df.columns = [[colname_RawFile, "num_N_peptides", "num_Q_peptides"]]
+    dfm = df.melt(id_vars=[colname_RawFile], value_vars=["num_N_peptides", "num_Q_peptides"], var_name="N_Q", value_name="num_peptides")
+    cond_n = dfm["N_Q"] == "num_N_peptides"
+    dfm.loc[cond_n, "N_Q"] = "N"
+    dfm.loc[-cond_n, "N_Q"] = "Q"
     print("Writing results to: {}".format(fn_out))
-    df.to_csv(fn_out, sep='\t', header=True, index=False)
-    return df
+    dfm.to_csv(fn_out, sep='\t', header=True, index=False)
+    return dfm
 
 def calculate_mean_and_CIs(df, ci, groupby_, fn_out):
     ci_low = int((100 - ci) / 2.0)
@@ -342,7 +346,7 @@ def error_(parser):
     sys.exit(2)
 
 if __name__ == '__main__':
-    cmd_line = False
+    cmd_line = True
 
     if not cmd_line:
         ### input options
