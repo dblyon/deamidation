@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 
 
-
 class MQcolnames(object):
 
     def __init__(self, df):
@@ -112,33 +111,6 @@ def percent_deamidation(group, abundance_colname="Intensity"):
     group["perc_DeamQ"] = 100.0 * sum(group["ratio_Q2E"] * group[abundance_colname]) / sum(group[abundance_colname])
     return group
 
-# def avg_PSM2Pep_Pep2Prot_Prot2Rawfile(df, mqc):
-#     """
-#     this is how we do it!
-#     average PSMs to Peptides
-#     average Peptides to Proteins
-#     average Proteins to RawFile
-#     :param df: DataFrame (with perc_DeamN col --> calc deamidation per RawFile, Sequence and Charge)
-#     :return: DataFrame
-#     """
-#     colname_RawFile = mqc.check_if_colname_or_similar_exists("Raw file")
-#     colname_LeadingRazorProtein = mqc.check_if_colname_or_similar_exists("Leading razor protein")
-#     # subset columns needed
-#     dfx = df[[colname_RawFile, colname_LeadingRazorProtein, "Sequence", "Charge", "perc_DeamN", "perc_DeamQ"]].drop_duplicates()
-#     # average PSMs to Peptides (merge charge states of same sequence)
-#     dfx = dfx.groupby([colname_RawFile, colname_LeadingRazorProtein, "Sequence"])[["perc_DeamN", "perc_DeamQ"]].agg("mean")
-#     dfx = dfx.reset_index()
-#     # averge Peptides to Proteins (merge sequences of same protein)
-#     dfx = dfx.groupby([colname_RawFile, colname_LeadingRazorProtein])[["perc_DeamN", "perc_DeamQ"]].agg("mean")
-#     dfx = dfx.reset_index()
-#     # average Proteins to RawFiles
-#     # first confidence interval then mean and std
-#     dfx = dfx.groupby([colname_RawFile])[["perc_DeamN", "perc_DeamQ"]].agg(["mean", "std"])
-#     dfx = dfx.reset_index()
-#     dfx.columns = ['_'.join(col).strip() for col in dfx.columns.values]
-#     dfx.columns = [colname_RawFile, "perc_DeamN", "perc_DeamN_std", "perc_DeamQ", "perc_DeamQ_std"]
-#     return dfx
-
 def avg_PSM2Pep(df, colname_RawFile, colname_LeadingRazorProtein, mean_or_median="mean"):
     """
     average PSMs to Peptides
@@ -169,122 +141,6 @@ def avg_Pep2Prot(df, colname_RawFile, colname_LeadingRazorProtein, mean_or_media
     dfx = dfx.reset_index()
     return dfx
 
-def avg_Prot2RawFile(df, colname_RawFile, std=False, mean_or_median="mean"):
-    """
-    average Proteins to RawFile
-    :param df: DataFrame (with perc_DeamN col --> calc deamidation per RawFile, Sequence and Charge)
-    :param colname_RawFile: String
-    :param std: Bool (flag for standard deviation)
-    :param mean_or_median: String(Flag to select mean/average or median)
-    :return: DataFrame (with reduced shape)
-    """
-    # average Proteins to RawFiles
-    # first confidence interval then mean and std
-    if std:
-        dfx = df.groupby([colname_RawFile])[["perc_DeamN", "perc_DeamQ"]].agg([mean_or_median, "std"])
-        dfx = dfx.reset_index()
-        dfx.columns = ['_'.join(col).strip() for col in dfx.columns.values]
-        dfx.columns = [colname_RawFile, "perc_DeamN", "perc_DeamN_std", "perc_DeamQ", "perc_DeamQ_std"]
-    else:
-        dfx = df.groupby([colname_RawFile])[["perc_DeamN", "perc_DeamQ"]].agg(mean_or_median)
-        dfx = dfx.reset_index()
-    return dfx
-
-def deam_per_RawFile_with_CI(df, mqc, ci=95, sampling="peptides", num_bootstraps=1000, groupby_="Raw file", mean_or_median="mean", average_method="Peptides_2_Proteins_per_groupby_"):
-    """
-    first collapse PSMs to Peptides by averaging
-    then either bootstrap sampling either of Peptides
-    or collapse Pepties to Proteins and bootstrap Proteins
-    :param df: DataFrame (evidence.txt with deam on PSM level)
-    :param mqc: MQcolnames Instance (check old vs. new colnames in tools-module)
-    :param ci: Float or Int (Confidence Interval)
-    :param sampling: String ("peptides" or "proteins")
-    :param num_bootstraps: Int
-    :param groupby_: String ('Raw file' or 'Experiment') --> if Experiment names are set
-                properly, then using Experiment will result in useful names for the plot
-    :param mean_or_median: String(Flag to select mean/average or median)
-    :param average_method: String("Peptides_2_Proteins_per_groupby_", "Peptides_per_groupby_". Flag to select average Peptides to Proteins and average Proteins per RawFile/Folder OR average Peptides per RawFile/Folder)
-    :return: DataFrame (Raw File, N_Q, percDeam, CI_low, CI_up)
-    """
-    ci_low = (100 - ci) / 2.0
-    ci_up = ci + ci_low
-
-    groupby_ = mqc.check_if_colname_or_similar_exists(groupby_)
-    colname_LeadingRazorProtein = mqc.check_if_colname_or_similar_exists("Leading razor protein")
-
-    # average PSMs to Peptides
-    dfx = avg_PSM2Pep(df, groupby_, colname_LeadingRazorProtein, mean_or_median=mean_or_median)
-    if sampling == "peptides":
-        # sampling Peptides for every RawFile
-        pass
-    elif sampling == "proteins":
-        # sampling proteins for every RawFile
-        # average Peptides to Proteins
-        dfx = avg_Pep2Prot(dfx, groupby_, colname_LeadingRazorProtein, mean_or_median=mean_or_median)
-    groupby_ = mqc.check_if_colname_or_similar_exists(groupby_)
-    grouped = dfx.groupby(groupby_)
-    name_list, n_lower_list, n_upper_list, q_lower_list, q_upper_list = [], [], [], [], []
-    for name, group in grouped:
-        print(name)
-        group_index = group.index.tolist()
-        group_n = []
-        group_q = []
-        for random_index in yield_random_combination_with_replacement(group_index, num_bootstraps):
-            dft = dfx.loc[random_index, :]
-            ### sanity check
-            cond = dft.index == random_index
-            assert cond.all() == True
-            if average_method == "Peptides_2_Proteins_per_groupby_":
-                ser = bootstrap_RFgrouped_avg_Pep2Prot_avg_Prot(dft, colname_LeadingRazorProtein, mean_or_median=mean_or_median)
-            ### average Peptides per RawFile/Folder
-            elif average_method == "Peptides_per_groupby_":
-                ser = bootstrap_RFgrouped_avg_Pep(dft, mean_or_median=mean_or_median)
-            group_n.append(ser["perc_DeamN"])
-            group_q.append(ser["perc_DeamQ"])
-        group_n = np.array(group_n)
-        group_q = np.array(group_q)
-        group_n = group_n[np.isfinite(group_n)]
-        group_q = group_q[np.isfinite(group_q)]
-        if group_n.size > 0:
-            group_n_lower, group_n_upper = np.percentile(group_n, ci_low), np.percentile(group_n, ci_up)
-        else:
-            group_n_lower, group_n_upper = np.nan, np.nan
-        if group_q.size > 0:
-            group_q_lower, group_q_upper = np.percentile(group_q, ci_low), np.percentile(group_q, ci_up)
-        else:
-            group_q_lower, group_q_upper = np.nan, np.nan
-        name_list.append(name)
-        n_lower_list.append(group_n_lower)
-        n_upper_list.append(group_n_upper)
-        q_lower_list.append(group_q_lower)
-        q_upper_list.append(group_q_upper)
-    df2merge = pd.DataFrame({groupby_: name_list, "DeamN_low": n_lower_list,
-                             "DeamN_up": n_upper_list, "DeamQ_low": q_lower_list, "DeamQ_up": q_upper_list})
-    if average_method == "Peptides_2_Proteins_per_groupby_":
-        dfx = avg_Pep2Prot(dfx, groupby_, colname_LeadingRazorProtein, mean_or_median=mean_or_median)
-        dfx = avg_Prot2RawFile(dfx, groupby_, std=False, mean_or_median=mean_or_median)
-    elif average_method == "Peptides_per_groupby_":
-        dfx = dfx.groupby(groupby_)[["perc_DeamN", "perc_DeamQ"]].agg(mean_or_median)
-        dfx = dfx.reset_index()
-    dfm = pd.merge(dfx, df2merge, how="outer")
-
-    dfm1 = pd.melt(dfm, id_vars=[groupby_], value_vars=["perc_DeamN", "perc_DeamQ"], var_name="N_Q", value_name="percDeam")
-    dfm1.loc[dfm1["N_Q"] == "perc_DeamN", "N_Q"] = "N"
-    dfm1.loc[dfm1["N_Q"] == "perc_DeamQ", "N_Q"] = "Q"
-
-    dfm2 = pd.melt(dfm, id_vars=[groupby_], value_vars=["DeamN_low", "DeamQ_low"], var_name="N_Q", value_name="CI_low")
-    dfm3 = pd.melt(dfm, id_vars=[groupby_], value_vars=["DeamN_up", "DeamQ_up"], var_name="N_Q", value_name="CI_up")
-
-    dfm2.loc[dfm2["N_Q"] == "DeamN_low", "N_Q"] = "N"
-    dfm2.loc[dfm2["N_Q"] == "DeamQ_low", "N_Q"] = "Q"
-
-    dfm3.loc[dfm3["N_Q"] == "DeamN_up", "N_Q"] = "N"
-    dfm3.loc[dfm3["N_Q"] == "DeamQ_up", "N_Q"] = "Q"
-
-    dfm_p1 = pd.merge(dfm1, dfm2, how='outer')
-    dfmx = pd.merge(dfm_p1, dfm3, how='outer')
-    return dfmx
-
 def yield_random_combination_with_replacement(iterable, n_times):
     """
     should be even more memory efficient :)
@@ -297,15 +153,6 @@ def yield_random_combination_with_replacement(iterable, n_times):
     """
     for _ in range(0, n_times):
         yield np.random.choice(iterable, len(iterable), replace=True)
-
-# def bootstrap_RFgrouped_avg_Prot(df):
-#     """
-#     calculate deamidation for N and Q by averaging Proteins
-#     expects a DataFrame of one RawFile
-#     :param df: DataFrame(evidence of one RawFile)
-#     :return: Series
-#     """
-#     return df[["perc_DeamN", "perc_DeamQ"]].mean()
 
 def bootstrap_RFgrouped_avg_Pep2Prot_avg_Prot(df, colname_LeadingRazorProtein, mean_or_median="mean"):
     """
@@ -332,28 +179,162 @@ def bootstrap_RFgrouped_avg_Pep(df, mean_or_median="mean"):
     return df[["perc_DeamN", "perc_DeamQ"]].agg(mean_or_median)
 
 def run(fn_evidence, abundance_colname, ci, sampling, num_bootstraps, output_dir, colname_proteins):
+    """
+    :param fn_evidence: String (absolute path to 'evidence.txt' file)
+    :param abundance_colname: String (column name of abundance data e.g. 'Intensity')
+    :param ci: Integer (Confidence Interval e.g. 95)
+    :param sampling: String ("peptides" or "proteins")
+    :param num_bootstraps: Integer (Number of Bootstrap iterations e.g. 1000)
+    :param output_dir: String (absolute path to output directory)
+    :param colname_proteins: String (column name of Protein Accession Numbers/Identifierse.g. 'Leading razor protein')
+    :return: None
+    """
     ###### use a MaxQuant evidence.txt as input
     ## merging data per RawFile
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
+
+    print("Reading file")
     df = pd.read_csv(fn_evidence, sep='\t')
+    mqc = MQcolnames(df)
+    colname_proteins = mqc.check_if_colname_or_similar_exists(colname_proteins)
+    colname_RawFile = mqc.check_if_colname_or_similar_exists("Raw file")
+    print("Calculating N2D and Q2E ratios")
     df = add_num_N_Q_cols(df)
     df = add_num_N2D_Q2E_ratios(df)
     ## calc deamidation per RawFile, Sequence and Charge
-    df = df.groupby(by=["Raw file", "Sequence", "Charge"], axis=0).apply(percent_deamidation, abundance_colname)
-    mqc = MQcolnames(df)
-    dfmx = deam_per_RawFile_with_CI(df, mqc, ci=ci, sampling=sampling, num_bootstraps=num_bootstraps)
-    fn_out = os.path.join(output_dir, "Deamidation_RawFile.txt")
-    dfmx.to_csv(fn_out, sep='\t', header=True, index=False)
-    ## merging data per Protein
-    colname_RawFile = mqc.check_if_colname_or_similar_exists("Raw file")
-    colname_LeadingRazorProtein = mqc.check_if_colname_or_similar_exists(colname_proteins)
-    dfx = avg_PSM2Pep(df, colname_RawFile, colname_LeadingRazorProtein)
-    dfx = avg_Pep2Prot(dfx, colname_RawFile, colname_LeadingRazorProtein)
-    fn_out = os.path.join(output_dir, "Deamidation_Protein.txt")
-    dfx.to_csv(fn_out, sep='\t', header=True, index=False)
-    ############################################################################################################################################
+    df = df.groupby(by=[colname_RawFile, "Sequence", "Charge"], axis=0).apply(percent_deamidation, abundance_colname)
 
+    fn_out_num_peptides = os.path.join(output_dir, "Number_of_Peptides_per_RawFile.txt")
+    print("Writing {}".format(fn_out_num_peptides))
+    _ = number_of_N_Q_peptides_with_DeamPerc(df, abundance_colname, colname_RawFile, fn_out_num_peptides)
+
+    ### Protein level deamidation --> without CI
+    dfp = avg_PSM2Pep(df, colname_RawFile, colname_proteins)
+    dfp = avg_Pep2Prot(dfp, colname_RawFile, colname_proteins)
+    fn_out = os.path.join(output_dir, "Protein_deamidation.txt")
+    print("Writing {}".format(fn_out))
+    dfp.to_csv(fn_out, sep='\t', header=True, index=False)
+
+    print("Bootstrapping")
+    fn_out_bootstrapped = os.path.join(output_dir, "Bootstrapped_values.txt")
+    df = deam_per_RawFile_returnBootstrappedVals(df, mqc, colname_proteins, sampling=sampling, num_bootstraps=num_bootstraps, groupby_=colname_RawFile, mean_or_median="mean", average_method="Peptides_per_groupby_")
+    df = df.reset_index(drop=True)
+    print("Writing results to: {}".format(fn_out_bootstrapped))
+    df.to_csv(fn_out_bootstrapped, sep='\t', header=True, index=False)
+
+    fn_out = os.path.join(output_dir, "Deamidation.txt")
+    print("Writing {}".format(fn_out))
+    calculate_mean_and_CIs(df, ci, colname_RawFile, fn_out)
+
+def deam_per_RawFile_returnBootstrappedVals(df, mqc, colname_proteins="Leading razor protein", sampling="peptides", num_bootstraps=1000, groupby_="Raw file", mean_or_median="mean", average_method="Peptides_per_groupby_"):
+    """
+    calculate deamidation-MEAN, but save values for BoxPlot
+    additionally calculate median and add to plot
+
+    first collapse PSMs to Peptides by averaging
+    then either bootstrap sampling either of Peptides
+    or collapse Pepties to Proteins and bootstrap Proteins
+    :param df: DataFrame (evidence.txt with deam on PSM level)
+    :param mqc: MQcolnames Instance (check old vs. new colnames in tools-module)
+    :param colname_proteins: String (column name e.g. 'Leading razor protein')
+    :param sampling: String ("peptides" or "proteins")
+    :param num_bootstraps: Int
+    :param groupby_: String ('Raw file' or 'Experiment') --> if Experiment names are set
+                properly, then using Experiment will result in useful names for the plot
+    :param mean_or_median: String(Flag to select mean/average or median)
+    :param average_method: String(Flag to select average Peptides to Proteins and average Proteins per RawFile/Folder OR average Peptides per RawFile/Folder)
+    :return: DataFrame (Raw File, N_Q, percDeam, CI_low, CI_up)
+    """
+    colname_RawFile = mqc.check_if_colname_or_similar_exists(groupby_)
+    colname_proteins = mqc.check_if_colname_or_similar_exists(colname_proteins)
+
+    # average PSMs to Peptides
+    dfx = avg_PSM2Pep(df, colname_RawFile, colname_proteins, mean_or_median=mean_or_median)
+    if sampling == "peptides":
+        # sampling Peptides for every RawFile
+        pass
+    elif sampling == "proteins":
+        # sampling proteins for every RawFile
+        # average Peptides to Proteins
+        dfx = avg_Pep2Prot(dfx, colname_RawFile, colname_proteins, mean_or_median=mean_or_median)
+    colname_RawFile = mqc.check_if_colname_or_similar_exists(groupby_)
+    grouped = dfx.groupby(colname_RawFile)
+    df_list = []
+    for name, group in grouped:
+        print(name)
+        df_temp = pd.DataFrame()
+        # df_temp[groupby_] = groupby_
+        group_index = group.index.tolist()
+        group_n = []
+        group_q = []
+        for random_index in yield_random_combination_with_replacement(group_index, num_bootstraps):
+            dft = dfx.loc[random_index, :]
+            ### sanity check
+            cond = dft.index == random_index
+            assert cond.all() == True
+            ### average Peptides to Proteins and average Proteins per RawFile/Folder
+            if average_method == "Peptides_2_Proteins_per_groupby_":
+                ser = bootstrap_RFgrouped_avg_Pep2Prot_avg_Prot(dft, colname_proteins, mean_or_median=mean_or_median)
+            ### average Peptides per RawFile/Folder
+            elif average_method == "Peptides_per_groupby_":
+                ser = bootstrap_RFgrouped_avg_Pep(dft, mean_or_median=mean_or_median)
+            else:
+                print("Method doesn't exist")
+                raise StopIteration
+            group_n.append(ser["perc_DeamN"])
+            group_q.append(ser["perc_DeamQ"])
+        group_n = np.array(group_n)
+        group_q = np.array(group_q)
+        group_n = group_n[np.isfinite(group_n)]
+        group_q = group_q[np.isfinite(group_q)]
+        if group_n.size == 0:
+            group_n = np.nan
+        if group_q.size == 0:
+            group_q = np.nan
+        df_temp["perc_DeamN"] = pd.Series(group_n)
+        df_temp["perc_DeamQ"] = pd.Series(group_q)
+        df_temp[groupby_] = name
+        df_list.append(df_temp)
+    dfm = pd.concat(df_list)
+    dfm = pd.melt(dfm, id_vars=[groupby_], value_vars=["perc_DeamN", "perc_DeamQ"], var_name="N_Q", value_name="percDeam")
+    dfm.loc[dfm["N_Q"] == "perc_DeamN", "N_Q"] = "N"
+    dfm.loc[dfm["N_Q"] == "perc_DeamQ", "N_Q"] = "Q"
+    return dfm
+
+def number_of_N_Q_peptides_with_DeamPerc(df, abundance_colname, colname_RawFile, fn_out):
+    """
+    number of Peptides for which a deamidation percentage exists, and that can therefore be used for bootstrapping.
+    """
+    ser_list = []
+    # calc deamidation per RawFile, Sequence and Charge
+    df = df.groupby(by=[colname_RawFile, "Sequence", "Charge"], axis=0).apply(percent_deamidation, abundance_colname)
+    grouped = df[[colname_RawFile, "perc_DeamN", "perc_DeamQ"]].groupby(colname_RawFile)
+    for name, group in grouped:
+        ser = group[["perc_DeamN", "perc_DeamQ"]].apply(lambda df: sum(df.notnull()))
+        ### doesn't work on groupED object but on group: grouped[["perc_DeamN", "perc_DeamQ"]].apply(lambda df: sum(df.notnull()))
+        ser.name = name
+        ser_list.append(ser)
+    df = pd.concat(ser_list, axis=1).T
+    df = df.reset_index()
+    df.columns = [[colname_RawFile, "num_N_peptides", "num_Q_peptides"]]
+    print("Writing results to: {}".format(fn_out))
+    df.to_csv(fn_out, sep='\t', header=True, index=False)
+    return df
+
+def calculate_mean_and_CIs(df, ci, groupby_, fn_out):
+    ci_low = int((100 - ci) / 2.0)
+    ci_up = int(ci + ci_low)
+
+    percentile_low = df.groupby([groupby_, "N_Q"])["percDeam"].apply(np.percentile, ci_low).reset_index()
+    percentile_low = percentile_low.rename(columns={"percDeam": "CI_low"})
+    percentile_up = df.groupby([groupby_, "N_Q"])["percDeam"].apply(np.percentile, ci_up).reset_index()
+    percentile_up = percentile_up.rename(columns={"percDeam": "CI_up"})
+    df_ci = pd.merge(percentile_low, percentile_up, how='outer')
+
+    dfx = df.groupby([groupby_, "N_Q"])["percDeam"].agg(["mean", "std"]).reset_index()
+    df = pd.merge(dfx, df_ci, how='outer')
+    df.to_csv(fn_out, sep='\t', header=True, index=False)
 
 def error_(parser):
     sys.stderr.write("The arguments passed are invalid.\nPlease check the input parameters.\n\n")
@@ -361,10 +342,9 @@ def error_(parser):
     sys.exit(2)
 
 if __name__ == '__main__':
-    cmd_line = True
+    cmd_line = False
 
     if not cmd_line:
-        ############################################################################################################################################
         ### input options
         fn_evidence = r"/Users/dblyon/Downloads/evidence.txt"
         output_dir = r"/Users/dblyon/Downloads/Output"
@@ -393,10 +373,6 @@ if __name__ == '__main__':
         output_dir = args.outputdirectory
         colname_proteins = args.colnameproteins
 
-        # for arg in sorted(vars(args)):
-        #     if getattr(args, arg) is None:
-        #         error_(parser)
-        
         if fn_evidence is None:
             error_(parser)
 
