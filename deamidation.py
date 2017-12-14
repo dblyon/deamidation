@@ -342,7 +342,7 @@ def error_(parser):
     sys.exit(2)
 
 if __name__ == '__main__':
-    cmd_line = False
+    cmd_line = True
 
     if not cmd_line:
         ### input options
