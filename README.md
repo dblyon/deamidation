@@ -28,4 +28,4 @@ e.g. type the following command in the terminal to see options.
 <code>python deamidation.py -e C:\Directory\evidence.txt -o C:\Directory\Output</code>
 
 # Support & Questions
-feel free to contact <david.lyon@cpr.ku.dk> for help
+feel free to contact <david.lyon@uzh.ch> for help
