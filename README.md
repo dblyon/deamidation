@@ -16,9 +16,8 @@ The "R_plot.R" script contains code that uses "Deamidation.txt" and "Number_of_P
 # Citation
 Please cite the following publication when using this tool:
 Mackie et al., Palaeoproteomic Profiling of Conservation Layers on a 14th Century Italian Wall Painting., Angew Chem Int Ed Engl., 2018
-
-https://doi.org/10.1002/anie.201713020
-https://www.ncbi.nlm.nih.gov/pubmed/29603563
+- https://doi.org/10.1002/anie.201713020
+- https://www.ncbi.nlm.nih.gov/pubmed/29603563
 
 # Prerequisites
     - Python 2.x
