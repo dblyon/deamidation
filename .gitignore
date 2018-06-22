@@ -1,3 +1,5 @@
+./evidence.txt
+evidence.txt # only because this specific file is from whatever source and probably not published
 *.ipynb
 
 # Byte-compiled / optimized / DLL files
