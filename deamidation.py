@@ -448,7 +448,7 @@ def error_(parser):
     sys.exit(2)
 
 if __name__ == '__main__':
-    cmd_line = False
+    cmd_line = True
 
     if not cmd_line:
         ### input options
@@ -456,7 +456,7 @@ if __name__ == '__main__':
         output_dir = r"/Users/dblyon/Downloads/Output"
         abundance_colname = "Intensity"
         sampling = "peptides"
-        num_bootstraps = 10
+        num_bootstraps = 1000
         ci = 95
         colname_proteins = "Leading razor protein"
         protein_bootstraps = True
@@ -471,7 +471,7 @@ if __name__ == '__main__':
         parser.add_argument("-ci", "--confidenceinterval", help="Confidence Interval (default=95)", type=int, default=95)
         parser.add_argument("-b", "--numbootstraps", help="Number of bootstrap iterations (default=1000)", type=int, default=1000)
         parser.add_argument("-c", "--colnameproteins", help="Column name for Protein identifiers (default='Leading razor protein')", type=str, default="Leading razor protein")
-        parser.add_argument("-p", "--proteinbootstraps", help="Bootstrap Peptides per Protein per RawFile. Usually there are not enough data for this to be meaningful and thus, this can lead to misleading results. This is NOT recommended as a default analysis. (default=False)", type=bool, default=False)
+        parser.add_argument("-p", "--protein_bootstraps", help="Bootstrap Peptides per Protein per RawFile. Usually there are not enough data for this to be meaningful and thus, this can lead to misleading results. This is NOT recommended as a default analysis. (default=False)", type=bool, default=False)
 
         args = parser.parse_args()
         fn_evidence = args.evidence
@@ -490,8 +490,9 @@ if __name__ == '__main__':
             output_dir = os.path.dirname(fn_evidence)
 
         print("#" * 80)
+        print("SETTINGS:")
         for arg in sorted(vars(args)):
             print(arg, ": ", getattr(args, arg))
-
+        print("#" * 80)
     run(fn_evidence, abundance_colname, ci, sampling, num_bootstraps, output_dir, colname_proteins, protein_bootstraps)
 
