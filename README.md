@@ -36,3 +36,9 @@ e.g. type the following command in the terminal to see options.
 
 # Support & Questions
 feel free to contact <david.lyon@uzh.ch> for help
+
+
+## Deamidation calculation explanation
+See 'Deamidation_calculation.pdf' 
+Peptide level deamidation rates are calculated separately for asparagine and glutamine taking relative abundance values into account, resulting in a deamidation rate between 0 and 1 for each unique peptide sequence and charge state. The various charge states are collapsed to the peptide level by calculating the mean, resulting in a separate deamidation rate for asparagine as well as glutamine, respectively. The peptide level deamidation rates are sampled with replacement (bootstrapped) 1000 times and therefrom the mean and the standard deviation calculated (in order to gain an estimate of the error of the calculation). Generally, the higher the number of peptides detected with the potential to be deamidated, the more accurate the measurement and thus the lower the error will be. Nevertheless, the method is intended for comparative purposes and not as an absolute measure of deamidation. 
+
